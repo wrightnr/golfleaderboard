@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Golf Competition Leaderboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green-dark: #1a3a2a;
+    --green-mid:  #2d5a3f;
+    --green-fade: #3d7a52;
+    --gold:       #c9a84c;
+    --gold-light: #e8c97a;
+    --cream:      #f5f0e8;
+    --cream-dark: #ede6d6;
+    --red:        #c0392b;
+    --text-dark:  #1a1a1a;
+    --text-mid:   #555;
+    --text-light: #888;
+    --white:      #ffffff;
+    --border:     rgba(0,0,0,0.08);
+    --row-hover:  rgba(45, 90, 63, 0.04);
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--text-dark);
+    min-height: 100vh;
+  }
+
+  /* ── HERO HEADER ── */
+  .hero {
+    background: var(--green-dark);
+    padding: 2.5rem 2rem 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 40px,
+      rgba(255,255,255,0.015) 40px,
+      rgba(255,255,255,0.015) 80px
+    );
+  }
+  .hero-inner { max-width: 900px; margin: 0 auto; position: relative; }
+  .hero-top { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .hero-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(22px, 5vw, 36px);
+    color: var(--cream);
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+  }
+  .hero-title span { color: var(--gold); }
+  .hero-sub { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px; letter-spacing: 0.5px; font-weight: 300; }
+  .live-badge {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(201,168,76,0.15);
+    border: 1px solid rgba(201,168,76,0.4);
+    border-radius: 100px;
+    padding: 5px 12px;
+    font-size: 11px; font-weight: 500;
+    color: var(--gold-light);
+    letter-spacing: 1px; text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .live-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--gold);
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .hero-stats {
+    display: flex; gap: 2rem; margin-top: 1.5rem;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding-top: 1.25rem;
+    flex-wrap: wrap;
+  }
+  .stat-item { display: flex; flex-direction: column; gap: 3px; }
+  .stat-label { font-size: 11px; color: rgba(255,255,255,0.4); letter-spacing: 0.8px; text-transform: uppercase; }
+  .stat-value { font-size: 15px; font-weight: 500; color: var(--cream); font-family: 'DM Mono', monospace; }
+
+  /* ── CONFIG PANEL ── */
+  .config-bar {
+    background: var(--green-mid);
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, padding 0.3s;
+  }
+  .config-bar.open { max-height: 600px; padding: 1.5rem 2rem; }
+  .config-inner { max-width: 900px; margin: 0 auto; }
+  .config-inner h3 {
+    font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: rgba(255,255,255,0.5); margin-bottom: 1rem;
+  }
+  .config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+  .config-field label { display: block; font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 5px; }
+  .config-field input, .config-field select {
+    width: 100%;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    color: var(--cream);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .config-field input:focus, .config-field select:focus { border-color: var(--gold); }
+  .config-field select option { background: var(--green-dark); }
+  .config-actions { display: flex; gap: 10px; margin-top: 1.25rem; flex-wrap: wrap; }
+  .btn {
+    padding: 8px 20px; border-radius: 6px; font-size: 13px; font-weight: 500;
+    cursor: pointer; border: none; transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+  }
+  .btn-primary { background: var(--gold); color: var(--green-dark); }
+  .btn-primary:hover { background: var(--gold-light); }
+  .btn-ghost { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.7); }
+  .btn-ghost:hover { border-color: rgba(255,255,255,0.4); color: #fff; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+
+  /* ── TOOLBAR ── */
+  .toolbar {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 0.75rem 2rem;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .toolbar-inner { max-width: 900px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .filters { display: flex; gap: 6px; }
+  .filter-btn {
+    padding: 5px 14px; border-radius: 100px; font-size: 12px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border);
+    background: transparent; color: var(--text-mid);
+    transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+  }
+  .filter-btn:hover { border-color: var(--green-mid); color: var(--green-mid); }
+  .filter-btn.active { background: var(--green-dark); color: var(--cream); border-color: var(--green-dark); }
+  .toolbar-right { display: flex; align-items: center; gap: 10px; }
+  .round-selector { display: flex; gap: 4px; }
+  .round-btn {
+    width: 30px; height: 30px; border-radius: 6px;
+    border: 1px solid var(--border); background: transparent;
+    font-size: 12px; font-weight: 500; cursor: pointer; color: var(--text-mid);
+    transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+  }
+  .round-btn.active { background: var(--green-dark); color: var(--cream); border-color: var(--green-dark); }
+  .config-toggle {
+    padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border);
+    background: transparent; color: var(--text-mid);
+    transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+  }
+  .config-toggle:hover { background: var(--row-hover); }
+  .config-toggle.open { background: var(--green-dark); color: var(--cream); border-color: var(--green-dark); }
+
+  /* ── MAIN TABLE ── */
+  .main { max-width: 900px; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
+
+  .status-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;
+  }
+  .status-text { font-size: 13px; color: var(--text-light); }
+  .refresh-btn {
+    font-size: 12px; color: var(--text-light); cursor: pointer;
+    background: none; border: none; padding: 4px 8px;
+    border-radius: 4px; transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+  }
+  .refresh-btn:hover { background: rgba(0,0,0,0.04); color: var(--text-mid); }
+
+  .table-wrap { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: var(--cream-dark); }
+  thead th {
+    padding: 10px 14px; font-size: 10px; font-weight: 500; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--text-light); text-align: left;
+  }
+  thead th.r { text-align: right; }
+  thead th:first-child { padding-left: 18px; }
+
+  tbody tr.data-row {
+    border-top: 1px solid var(--border);
+    cursor: pointer; transition: background 0.12s;
+  }
+  tbody tr.data-row:hover { background: var(--row-hover); }
+  tbody tr.data-row.rank-1 { background: rgba(201,168,76,0.06); }
+  tbody tr.data-row.rank-1:hover { background: rgba(201,168,76,0.1); }
+
+  td { padding: 13px 14px; vertical-align: middle; }
+  td:first-child { padding-left: 18px; }
+
+  .pos-cell { width: 36px; }
+  .pos-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 500; font-family: 'DM Mono', monospace;
+    color: var(--text-mid); border: 1px solid var(--border);
+  }
+  .pos-num.gold { background: var(--gold); color: var(--white); border-color: var(--gold); }
+  .pos-num.silver { background: #aaa; color: var(--white); border-color: #aaa; }
+  .pos-num.bronze { background: #cd7f32; color: var(--white); border-color: #cd7f32; }
+
+  .player-cell .player-name { font-size: 14px; font-weight: 500; }
+  .player-cell .player-pro { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+
+  .score-cell { text-align: right; }
+  .score-pill {
+    display: inline-block; padding: 3px 9px; border-radius: 4px;
+    font-size: 12px; font-weight: 500; font-family: 'DM Mono', monospace;
+    min-width: 44px; text-align: center;
+  }
+  .under { background: #eaf6ee; color: #256b38; }
+  .over  { background: #fdf0ef; color: var(--red); }
+  .even  { background: var(--cream-dark); color: var(--text-mid); }
+
+  .combined-cell { text-align: right; }
+  .combined-score {
+    font-size: 18px; font-weight: 500; font-family: 'DM Mono', monospace;
+  }
+  .combined-score.under { color: #256b38; }
+  .combined-score.over  { color: var(--red); }
+  .combined-score.even  { color: var(--text-mid); }
+
+  .trend { font-size: 16px; color: var(--text-light); }
+
+  /* ── EXPAND ROW ── */
+  .expand-row { display: none; background: var(--cream); border-top: 1px solid var(--border); }
+  .expand-row.open { display: table-row; }
+  .expand-inner { padding: 14px 18px 16px; }
+  .expand-title { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-light); margin-bottom: 10px; }
+  .rounds-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .round-card {
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px; text-align: center;
+  }
+  .round-card .rc-label { font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-light); margin-bottom: 6px; }
+  .round-card .rc-scores { display: flex; justify-content: center; align-items: center; gap: 4px; }
+  .round-card .rc-plus { font-size: 11px; color: var(--text-light); }
+  .round-card.inactive { opacity: 0.35; }
+
+  /* ── LOADING / ERROR ── */
+  .state-msg {
+    text-align: center; padding: 3rem; color: var(--text-light); font-size: 14px;
+  }
+  .spinner {
+    width: 28px; height: 28px; border: 2px solid var(--border);
+    border-top-color: var(--green-mid); border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── SETUP NOTICE ── */
+  .setup-notice {
+    background: rgba(201,168,76,0.08);
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 10px; padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem; font-size: 13px; color: var(--text-mid);
+    line-height: 1.6;
+  }
+  .setup-notice strong { color: var(--text-dark); font-weight: 500; }
+  .setup-notice code {
+    background: rgba(0,0,0,0.06); padding: 1px 6px; border-radius: 3px;
+    font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-dark);
+  }
+
+  /* ── FOOTER ── */
+  .footer { max-width: 900px; margin: 0 auto; padding: 0 2rem 2rem; }
+  .footer-text { font-size: 12px; color: var(--text-light); line-height: 1.7; }
+  .footer-text a { color: var(--green-mid); text-decoration: none; }
+  .footer-text a:hover { text-decoration: underline; }
+
+  @media (max-width: 600px) {
+    .hero, .toolbar, .main, .footer { padding-left: 1rem; padding-right: 1rem; }
+    .config-bar.open { padding: 1rem; }
+    .rounds-grid { grid-template-columns: repeat(2, 1fr); }
+    .hero-stats { gap: 1rem; }
+    thead th.hide-mobile, td.hide-mobile { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ HERO ══════════════ -->
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-top">
+      <div>
+        <h1 class="hero-title">Ridgewood <span>Classic</span></h1>
+        <p class="hero-sub" id="event-subtitle">Competition Leaderboard · Configure your sources below</p>
+      </div>
+      <div class="live-badge"><div class="live-dot"></div>Live</div>
+    </div>
+    <div class="hero-stats">
+      <div class="stat-item">
+        <span class="stat-label">Leader</span>
+        <span class="stat-value" id="stat-leader">—</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Score</span>
+        <span class="stat-value" id="stat-score">—</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Entries</span>
+        <span class="stat-value" id="stat-entries">—</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Round</span>
+        <span class="stat-value" id="stat-round">—</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ CONFIG PANEL ══════════════ -->
+<div class="config-bar" id="config-bar">
+  <div class="config-inner">
+    <h3>Data Sources</h3>
+    <div class="config-grid">
+      <div class="config-field">
+        <label>Google Sheet ID</label>
+        <input type="text" id="cfg-sheet-id" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" />
+      </div>
+      <div class="config-field">
+        <label>Google API Key</label>
+        <input type="password" id="cfg-google-key" placeholder="AIzaSy..." />
+      </div>
+      <div class="config-field">
+        <label>Sheet Range (columns: Player Name, Assigned Pro, Your Score)</label>
+        <input type="text" id="cfg-sheet-range" value="Sheet1!A2:C100" />
+      </div>
+      <div class="config-field">
+        <label>Golf API Provider</label>
+        <select id="cfg-api-provider">
+          <option value="mock">Mock data (no API key needed)</option>
+          <option value="sportsdata">SportsData.io</option>
+          <option value="rapidsports">RapidAPI – Golf API</option>
+          <option value="thesportsdb">TheSportsDB</option>
+        </select>
+      </div>
+      <div class="config-field">
+        <label>Golf API Key</label>
+        <input type="password" id="cfg-golf-key" placeholder="Your golf API key..." />
+      </div>
+      <div class="config-field">
+        <label>Tournament ID / Name</label>
+        <input type="text" id="cfg-tournament-id" placeholder="e.g. 401353360" />
+      </div>
+    </div>
+    <div class="config-actions">
+      <button class="btn btn-primary" onclick="loadData()">Load Data</button>
+      <button class="btn btn-ghost btn-sm" onclick="saveConfig()">Save config</button>
+      <button class="btn btn-ghost btn-sm" onclick="loadMock()">Load mock data</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ TOOLBAR ══════════════ -->
+<div class="toolbar">
+  <div class="toolbar-inner">
+    <div class="filters">
+      <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+      <button class="filter-btn" onclick="setFilter('under',this)">Under par</button>
+      <button class="filter-btn" onclick="setFilter('over',this)">Over par</button>
+    </div>
+    <div class="toolbar-right">
+      <div class="round-selector" id="round-selector"></div>
+      <button class="config-toggle" id="config-toggle-btn" onclick="toggleConfig()">⚙ Configure</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<div class="main">
+
+  <div class="setup-notice" id="setup-notice">
+    <strong>Getting started:</strong> Click <strong>⚙ Configure</strong> above to enter your Google Sheet ID, Google API key, and golf API key.
+    Your sheet should have columns: <code>Player Name | Assigned Pro | Your Score</code> (your score as a single integer, e.g. 74).
+    Or click <strong>Load mock data</strong> to preview the layout instantly.
+  </div>
+
+  <div class="status-bar">
+    <span class="status-text" id="status-text">No data loaded</span>
+    <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="pos-cell">Pos</th>
+          <th>Player · Assigned pro</th>
+          <th class="r hide-mobile">Your score</th>
+          <th class="r hide-mobile">Pro R4</th>
+          <th class="r">Combined</th>
+          <th class="r" style="width:28px;"></th>
+        </tr>
+      </thead>
+      <tbody id="lb-body">
+        <tr><td colspan="6"><div class="state-msg">Configure your data sources above to get started.</div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════ FOOTER ══════════════ -->
+<div class="footer">
+  <p class="footer-text">
+    Local scores are read from your Google Sheet via the
+    <a href="https://developers.google.com/sheets/api" target="_blank">Google Sheets API v4</a>.
+    Pro scores are fetched from your chosen golf data API and matched by player name.
+    Combined score = local to-par + pro to-par. Lower is better.
+  </p>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════
+const STORAGE_KEY = 'golf_lb_config_v2';
+
+function saveConfig() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(getConfig()));
+  alert('Config saved.');
+}
+
+function getConfig() {
+  return {
+    sheetId:      document.getElementById('cfg-sheet-id').value.trim(),
+    googleKey:    document.getElementById('cfg-google-key').value.trim(),
+    sheetRange:   document.getElementById('cfg-sheet-range').value.trim() || 'Sheet1!A2:C100',
+    provider:     document.getElementById('cfg-api-provider').value,
+    golfKey:      document.getElementById('cfg-golf-key').value.trim(),
+    tournamentId: document.getElementById('cfg-tournament-id').value.trim(),
+  };
+}
+
+function applyConfig(cfg) {
+  document.getElementById('cfg-sheet-id').value      = cfg.sheetId || '';
+  document.getElementById('cfg-google-key').value    = cfg.googleKey || '';
+  document.getElementById('cfg-sheet-range').value   = cfg.sheetRange || 'Sheet1!A2:C100';
+  document.getElementById('cfg-api-provider').value  = cfg.provider || 'mock';
+  document.getElementById('cfg-golf-key').value      = cfg.golfKey || '';
+  document.getElementById('cfg-tournament-id').value = cfg.tournamentId || '';
+}
+
+(function loadSavedConfig() {
+  try { const s = localStorage.getItem(STORAGE_KEY); if (s) applyConfig(JSON.parse(s)); } catch(e) {}
+})();
+
+function toggleConfig() {
+  const bar = document.getElementById('config-bar');
+  const btn = document.getElementById('config-toggle-btn');
+  bar.classList.toggle('open');
+  btn.classList.toggle('open');
+  btn.textContent = bar.classList.contains('open') ? '✕ Close' : '⚙ Configure';
+}
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let appData   = [];
+let curFilter = 'all';
+
+// ══════════════════════════════════════════
+//  SCORE HELPERS
+// ══════════════════════════════════════════
+// Scores are stored as raw integers (strokes).
+// Combined = yourScore + proR4Score (lower is better).
+function fmtRaw(n) {
+  // Display raw stroke count
+  return { label: n.toString(), cls: 'even' };
+}
+
+function fmtCombined(n) {
+  // For combined we just show the number; highlight lowest
+  return n.toString();
+}
+
+// ══════════════════════════════════════════
+//  FETCH: GOOGLE SHEETS
+//  Expected columns: Player Name | Assigned Pro | Your Score
+// ══════════════════════════════════════════
+async function fetchSheetData(sheetId, googleKey, range) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(range)}?key=${googleKey}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Google Sheets error ${res.status}: ${await res.text()}`);
+  const json = await res.json();
+  return (json.values || []).map(row => ({
+    player:     row[0] || '',
+    pro:        row[1] || '',
+    yourScore:  parseInt(row[2]) || 0,
+  })).filter(r => r.player);
+}
+
+// ══════════════════════════════════════════
+//  FETCH: GOLF API — returns map of { "Player Name": r4Score }
+// ══════════════════════════════════════════
+async function fetchProR4Scores(cfg) {
+  if (cfg.provider === 'mock' || !cfg.golfKey) return null;
+
+  if (cfg.provider === 'sportsdata') {
+    // SportsData.io: GET /golf/v2/json/Leaderboard/{tournamentId}
+    // Response: { Players: [{ Name, Rounds: [{ Score }, ...] }] }
+    const url = `https://api.sportsdata.io/golf/v2/json/Leaderboard/${cfg.tournamentId}?key=${cfg.golfKey}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`SportsData error ${res.status}`);
+    const json = await res.json();
+    const map = {};
+    (json.Players || []).forEach(p => {
+      const r4 = p.Rounds && p.Rounds[3] ? p.Rounds[3].Score : null;
+      if (r4 !== null) map[p.Name] = r4;
+    });
+    return map;
+  }
+
+  if (cfg.provider === 'rapidsports') {
+    // RapidAPI Golf Leaderboard Data
+    const url = `https://golf-leaderboard-data.p.rapidapi.com/leaderboard/${cfg.tournamentId}`;
+    const res = await fetch(url, {
+      headers: {
+        'x-rapidapi-key': cfg.golfKey,
+        'x-rapidapi-host': 'golf-leaderboard-data.p.rapidapi.com'
+      }
+    });
+    if (!res.ok) throw new Error(`RapidAPI error ${res.status}`);
+    const json = await res.json();
+    const map = {};
+    ((json.results || {}).leaderboard || []).forEach(p => {
+      const rounds = p.rounds || [];
+      const r4 = rounds[3] ? parseInt(rounds[3].round_score) : null;
+      if (r4 !== null) map[p.player_name] = r4;
+    });
+    return map;
+  }
+
+  if (cfg.provider === 'thesportsdb') {
+    const url = `https://www.thesportsdb.com/api/v1/json/${cfg.golfKey}/searchevents.php?e=${encodeURIComponent(cfg.tournamentId)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`TheSportsDB error ${res.status}`);
+    const json = await res.json();
+    const map = {};
+    (json.event || []).forEach(p => { map[p.strHomeTeam] = parseInt(p.intHomeScore) || 0; });
+    return map;
+  }
+
+  return null;
+}
+
+// ══════════════════════════════════════════
+//  MOCK DATA  (your score + pro R4 score)
+// ══════════════════════════════════════════
+const MOCK = [
+  { player: 'Sarah K.',   pro: 'Rory McIlroy',        yourScore: 76, proR4: 66 },
+  { player: 'Mike T.',    pro: 'Scottie Scheffler',    yourScore: 81, proR4: 65 },
+  { player: 'Dana L.',    pro: 'Jon Rahm',              yourScore: 79, proR4: 70 },
+  { player: 'Chris B.',   pro: 'Xander Schauffele',    yourScore: 84, proR4: 67 },
+  { player: 'Pat W.',     pro: 'Collin Morikawa',      yourScore: 80, proR4: 71 },
+  { player: 'Jordan M.',  pro: 'Brooks Koepka',        yourScore: 88, proR4: 69 },
+  { player: 'Taylor R.',  pro: 'Ludvig Åberg',          yourScore: 77, proR4: 70 },
+  { player: 'Casey N.',   pro: 'Tommy Fleetwood',      yourScore: 83, proR4: 68 },
+];
+
+function loadMock() {
+  document.getElementById('cfg-api-provider').value = 'mock';
+  processData(MOCK.map(d => ({ ...d })));
+  document.getElementById('setup-notice').style.display = 'none';
+  setStatus('Showing mock data · ' + new Date().toLocaleTimeString());
+}
+
+// ══════════════════════════════════════════
+//  MAIN LOAD
+// ══════════════════════════════════════════
+async function loadData() {
+  const cfg = getConfig();
+  if (cfg.provider === 'mock' || (!cfg.sheetId && !cfg.golfKey)) { loadMock(); return; }
+
+  setStatus('Loading…', true);
+  try {
+    // 1. Your scores from Google Sheet
+    let sheetRows;
+    if (cfg.sheetId && cfg.googleKey) {
+      sheetRows = await fetchSheetData(cfg.sheetId, cfg.googleKey, cfg.sheetRange);
+    } else {
+      sheetRows = MOCK.map(d => ({ player: d.player, pro: d.pro, yourScore: d.yourScore }));
+    }
+
+    // 2. Pro R4 scores from golf API
+    const proMap = await fetchProR4Scores(cfg);
+
+    // 3. Match & combine
+    const rows = sheetRows.map(r => {
+      let proR4 = 0;
+      if (proMap) {
+        const key = Object.keys(proMap).find(k =>
+          k.toLowerCase().includes(r.pro.toLowerCase().split(' ').pop()) ||
+          r.pro.toLowerCase().includes(k.toLowerCase().split(' ').pop())
+        );
+        if (key) proR4 = proMap[key];
+      } else {
+        const m = MOCK.find(m => m.pro.toLowerCase() === r.pro.toLowerCase());
+        if (m) proR4 = m.proR4;
+      }
+      return { ...r, proR4 };
+    });
+
+    processData(rows);
+    document.getElementById('setup-notice').style.display = 'none';
+    document.getElementById('event-subtitle').textContent =
+      (cfg.tournamentId || 'Tournament') + ' · Final round';
+    setStatus('Updated · ' + new Date().toLocaleTimeString());
+  } catch(e) {
+    setStatus('Error: ' + e.message);
+    console.error(e);
+  }
+}
+
+// ══════════════════════════════════════════
+//  PROCESS + RENDER
+// ══════════════════════════════════════════
+function processData(rows) {
+  appData = rows.map(r => ({
+    ...r,
+    combined: r.yourScore + r.proR4,
+  })).sort((a, b) => a.combined - b.combined);
+
+  updateStats();
+  renderTable();
+}
+
+function updateStats() {
+  if (!appData.length) return;
+  const leader = appData[0];
+  document.getElementById('stat-leader').textContent  = leader.player;
+  document.getElementById('stat-score').textContent   = leader.combined;
+  document.getElementById('stat-entries').textContent = appData.length;
+  document.getElementById('stat-round').textContent   = 'R4';
+}
+
+function setFilter(f, btn) {
+  curFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+function renderTable() {
+  const best = appData.length ? appData[0].combined : 0;
+
+  const filtered = appData.filter(r => {
+    if (curFilter === 'under') return r.combined < (best + 5);  // bottom half
+    if (curFilter === 'over')  return r.combined >= (best + 5);
+    return true;
+  });
+
+  const tbody = document.getElementById('lb-body');
+  tbody.innerHTML = '';
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="state-msg">No entries match this filter.</div></td></tr>';
+    return;
+  }
+
+  filtered.forEach((r, pos) => {
+    const rank = appData.indexOf(r) + 1;
+    const posClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+    const rowClass = rank === 1 ? 'rank-1' : '';
+    const diffFromLead = r.combined - best;
+    const diffLabel = diffFromLead === 0 ? '—' : '+' + diffFromLead;
+
+    const mainRow = document.createElement('tr');
+    mainRow.className = `data-row ${rowClass}`;
+    mainRow.innerHTML = `
+      <td class="pos-cell"><div class="pos-num ${posClass}">${rank}</div></td>
+      <td class="player-cell">
+        <div class="player-name">${r.player}</div>
+        <div class="player-pro">${r.pro}</div>
+      </td>
+      <td class="score-cell hide-mobile">
+        <span class="score-pill even">${r.yourScore}</span>
+      </td>
+      <td class="score-cell hide-mobile">
+        <span class="score-pill even">${r.proR4}</span>
+      </td>
+      <td class="combined-cell">
+        <span class="combined-score" style="color:var(--text-dark)">${r.combined}</span>
+        <span style="font-size:11px;color:var(--text-light);margin-left:4px;">${diffLabel}</span>
+      </td>
+      <td></td>
+    `;
+    tbody.appendChild(mainRow);
+  });
+}
+
+function setStatus(msg, loading) {
+  document.getElementById('status-text').textContent = msg;
+  if (loading) {
+    document.getElementById('lb-body').innerHTML =
+      '<tr><td colspan="6"><div class="state-msg"><div class="spinner"></div>Fetching data…</div></td></tr>';
+  }
+}
+
+// Simplify filters to make sense with raw scores
+document.querySelector('[onclick="setFilter(\'under\',this)"]').textContent = 'Top half';
+document.querySelector('[onclick="setFilter(\'over\',this)"]').textContent  = 'Bottom half';
+
+// Hide round selector — not needed
+document.getElementById('round-selector').style.display = 'none';
+
+loadMock();
+</script>
+</body>
+</html>
