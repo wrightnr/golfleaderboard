@@ -432,10 +432,10 @@
 //  MAJORS CONFIG
 // ══════════════════════════════════════════
 const MAJORS = {
-  '006': 'The Masters',
-  '026': 'PGA Championship',
-  '021': 'US Open',
-  '100': 'The Open Championship',
+  '006': { name: 'The Masters',           par: 72 },
+  '026': { name: 'PGA Championship',      par: 70 },
+  '021': { name: 'US Open',               par: 70 },
+  '100': { name: 'The Open Championship', par: 70 },
 };
 
 // ══════════════════════════════════════════
@@ -554,19 +554,20 @@ function matchPro(proName, proMap) {
 //  MOCK DATA
 // ══════════════════════════════════════════
 const MOCK = [
-  { player: 'Sarah K.',  pro: 'Rory McIlroy',       yourScore: 76, proR4: -6 },
-  { player: 'Mike T.',   pro: 'Scottie Scheffler',   yourScore: 81, proR4: -5 },
-  { player: 'Dana L.',   pro: 'Jon Rahm',             yourScore: 79, proR4: -2 },
-  { player: 'Chris B.',  pro: 'Xander Schauffele',   yourScore: 84, proR4: -4 },
-  { player: 'Pat W.',    pro: 'Collin Morikawa',     yourScore: 80, proR4: -3 },
-  { player: 'Jordan M.', pro: 'Brooks Koepka',       yourScore: 88, proR4:  0 },
-  { player: 'Taylor R.', pro: 'Tyrrell Hatton',      yourScore: 77, proR4: -7 },
-  { player: 'Casey N.',  pro: 'Tommy Fleetwood',     yourScore: 83, proR4: -1 },
+  { player: 'Sarah K.',  pro: 'Rory McIlroy',      yourScore: 76, proR4: -6 },
+  { player: 'Mike T.',   pro: 'Scottie Scheffler',  yourScore: 81, proR4: -5 },
+  { player: 'Dana L.',   pro: 'Jon Rahm',            yourScore: 79, proR4: -2 },
+  { player: 'Chris B.',  pro: 'Xander Schauffele',  yourScore: 84, proR4: -4 },
+  { player: 'Pat W.',    pro: 'Collin Morikawa',    yourScore: 80, proR4: -3 },
+  { player: 'Jordan M.', pro: 'Brooks Koepka',      yourScore: 88, proR4:  0 },
+  { player: 'Taylor R.', pro: 'Tyrrell Hatton',     yourScore: 74, proR4: -7 },
+  { player: 'Casey N.',  pro: 'Tommy Fleetwood',    yourScore: 83, proR4: -1 },
 ];
 
 function loadMock() {
-  processData(MOCK.map(d => ({ ...d })), 'Mock Major', 'R4');
+  processData(MOCK.map(d => ({ ...d })), 'The Masters', 'R4', 72);
   document.getElementById('setup-notice').style.display = 'none';
+  document.getElementById('event-subtitle').textContent = 'The Masters 2026 · R4 · Par 72';
   setStatus('Showing mock data · ' + new Date().toLocaleTimeString());
 }
 
@@ -605,10 +606,10 @@ async function loadData() {
       return { ...r, proR4 };
     });
 
-    const majorName = MAJORS[cfg.major] || cfg.major;
-    processData(rows, majorName, currentRound);
+    const majorInfo = MAJORS[cfg.major] || { name: cfg.major, par: 72 };
+    processData(rows, majorInfo.name, currentRound, majorInfo.par);
     document.getElementById('setup-notice').style.display = 'none';
-    document.getElementById('event-subtitle').textContent = `${majorName} ${cfg.year} · R4`;
+    document.getElementById('event-subtitle').textContent = `${majorInfo.name} ${cfg.year} · R4 · Par ${majorInfo.par}`;
     setStatus('Updated · ' + new Date().toLocaleTimeString());
   } catch(e) {
     setStatus('Error: ' + e.message);
@@ -619,12 +620,17 @@ async function loadData() {
 // ══════════════════════════════════════════
 //  PROCESS + RENDER
 // ══════════════════════════════════════════
-function processData(rows, majorName, round) {
-  // combined = yourScore (raw strokes) + proR4 (to par) → lower is better
+function processData(rows, majorName, round, par) {
+  // combined = yourScore + proR4strokes (both raw)
   appData = rows.map(r => ({
     ...r,
-    combined: r.yourScore + r.proR4,
-  })).sort((a, b) => a.combined - b.combined);
+    par,
+    yourToPar:  r.yourScore - par,
+    proToPar:   r.proR4,          // Slash Golf already returns to-par
+    proStrokes: r.proR4 + par,    // convert to raw strokes
+    combined:   r.yourScore + (r.proR4 + par),
+    combinedToPar: (r.yourScore - par) + r.proR4,
+  })).sort((a, b) => a.combinedToPar - b.combinedToPar);
 
   updateStats(round);
   renderTable();
@@ -633,10 +639,17 @@ function processData(rows, majorName, round) {
 function updateStats(round) {
   if (!appData.length) return;
   const leader = appData[0];
+  const ctp = leader.combinedToPar;
   document.getElementById('stat-leader').textContent  = leader.player;
-  document.getElementById('stat-score').textContent   = leader.combined;
+  document.getElementById('stat-score').textContent   = fmtToPar(ctp);
   document.getElementById('stat-entries').textContent = appData.length;
   document.getElementById('stat-round').textContent   = round || 'R4';
+}
+
+function fmtToPar(n) {
+  if (n < 0) return { label: n.toString(), cls: 'under' };
+  if (n === 0) return { label: 'E', cls: 'even' };
+  return { label: '+' + n, cls: 'over' };
 }
 
 function setFilter(f, btn) {
@@ -647,11 +660,11 @@ function setFilter(f, btn) {
 }
 
 function renderTable() {
-  const best = appData.length ? appData[0].combined : 0;
+  const best = appData.length ? appData[0].combinedToPar : 0;
 
   const filtered = appData.filter(r => {
-    if (curFilter === 'under') return r.combined <= best + Math.floor(appData.length / 2);
-    if (curFilter === 'over')  return r.combined >  best + Math.floor(appData.length / 2);
+    if (curFilter === 'under') return r.combinedToPar <= best + Math.floor(appData.length / 2);
+    if (curFilter === 'over')  return r.combinedToPar >  best + Math.floor(appData.length / 2);
     return true;
   });
 
@@ -659,7 +672,7 @@ function renderTable() {
   tbody.innerHTML = '';
 
   if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="6"><div class="state-msg">No entries match this filter.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5"><div class="state-msg">No entries match this filter.</div></td></tr>';
     return;
   }
 
@@ -667,12 +680,12 @@ function renderTable() {
     const rank = appData.indexOf(r) + 1;
     const posClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
     const rowClass = rank === 1 ? 'rank-1' : '';
-    const diffFromLead = r.combined - best;
+    const diffFromLead = r.combinedToPar - best;
     const diffLabel = diffFromLead === 0 ? '—' : '+' + diffFromLead;
 
-    // Format pro R4 score to par
-    const proLabel = r.proR4 === 0 ? 'E' : r.proR4 > 0 ? '+' + r.proR4 : r.proR4.toString();
-    const proCls   = r.proR4 < 0 ? 'under' : r.proR4 > 0 ? 'over' : 'even';
+    const ytp = fmtToPar(r.yourToPar);
+    const ptp = fmtToPar(r.proToPar);
+    const ctp = fmtToPar(r.combinedToPar);
 
     const mainRow = document.createElement('tr');
     mainRow.className = `data-row ${rowClass}`;
@@ -684,15 +697,17 @@ function renderTable() {
       </td>
       <td class="score-cell hide-mobile">
         <span class="score-pill even">${r.yourScore}</span>
+        <span style="font-size:11px;color:var(--color-${ytp.cls === 'under' ? 'success' : ytp.cls === 'over' ? 'danger' : 'secondary'});margin-left:3px;">(${ytp.label})</span>
       </td>
       <td class="score-cell hide-mobile">
-        <span class="score-pill ${proCls}">${proLabel}</span>
+        <span class="score-pill ${ptp.cls}">${r.proStrokes}</span>
+        <span style="font-size:11px;color:var(--color-${ptp.cls === 'under' ? 'success' : ptp.cls === 'over' ? 'danger' : 'secondary'});margin-left:3px;">(${ptp.label})</span>
       </td>
       <td class="combined-cell">
         <span class="combined-score" style="color:var(--text-dark)">${r.combined}</span>
+        <span class="score-pill ${ctp.cls}" style="font-size:11px;margin-left:6px;padding:2px 6px;">${ctp.label}</span>
         <span style="font-size:11px;color:var(--text-light);margin-left:4px;">${diffLabel}</span>
       </td>
-      <td></td>
     `;
     tbody.appendChild(mainRow);
   });
