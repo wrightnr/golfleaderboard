@@ -725,7 +725,36 @@ document.querySelector('[onclick="setFilter(\'under\',this)"]').textContent = 'T
 document.querySelector('[onclick="setFilter(\'over\',this)"]').textContent  = 'Bottom half';
 document.getElementById('round-selector').style.display = 'none';
 
-loadMock();
+const MAJOR_SCHEDULE = [
+  { major: '014', year: '2026', sheetRange: 'Masters!A2:C100',          start: '2026-04-06', end: '2026-04-12' },
+  { major: '033', year: '2026', sheetRange: 'PGA Championship!A2:C100', start: '2026-05-11', end: '2026-05-17' },
+  { major: '026', year: '2026', sheetRange: 'US Open!A2:C100',          start: '2026-06-15', end: '2026-06-21' },
+  { major: '100', year: '2026', sheetRange: 'The Open!A2:C100',         start: '2026-07-13', end: '2026-07-19' },
+];
+
+function getCurrentMajor() {
+  const today = new Date();
+  let current = MAJOR_SCHEDULE[0];
+  for (const m of MAJOR_SCHEDULE) {
+    const start = new Date(m.start);
+    const end = new Date(m.end);
+    end.setHours(23, 59, 59);
+    if (today >= start) current = m;
+    if (today >= start && today <= end) break;
+  }
+  return current;
+}
+
+const activeMajor = getCurrentMajor();
+applyConfig({
+  sheetId:    '1V8XajRqkT2YZHTDr8i1ChbMK3Q0QVJoMrcQ1l_c3gz8',
+  googleKey:  'AIzaSyDczpyX9rPpaKAosY2XWIQMiVeBTdPtHrA',
+  golfKey:    '0182e63d58msh029ee53ebb69875p164377jsn175bae2fce4d',
+  sheetRange: activeMajor.sheetRange,
+  major:      activeMajor.major,
+  year:       activeMajor.year,
+});
+loadData();
 </script>
 </body>
 </html>
