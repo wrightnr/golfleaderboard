@@ -513,17 +513,16 @@ async function fetchSheetData(sheetId, googleKey, range) {
 async function fetchProR4Scores(cfg) {
   if (cfg.provider === 'mock' || !cfg.golfKey) return null;
 
-  if (cfg.provider === 'sportsdata') {
-    // SportsData.io: GET /golf/v2/json/Leaderboard/{tournamentId}
-    // Response: { Players: [{ Name, Rounds: [{ Score }, ...] }] }
-    const url = `https://api.sportsdata.io/golf/v2/json/Leaderboard/${cfg.tournamentId}?key=${cfg.golfKey}`;
+ if (cfg.provider === 'sportsdata') {
+    const url = `https://api.sportsdata.io/golf/v2/json/PlayerTournamentRoundScores/${cfg.tournamentId}?key=${cfg.golfKey}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`SportsData error ${res.status}`);
     const json = await res.json();
     const map = {};
-    (json.Players || []).forEach(p => {
-      const r4 = p.Rounds && p.Rounds[3] ? p.Rounds[3].Score : null;
-      if (r4 !== null) map[p.Name] = r4;
+    json.forEach(p => {
+      const fullName = `${p.FirstName} ${p.LastName}`;
+      const r4 = p.PlayerRoundScore.find(r => r.Number === 4);
+      if (r4 && r4.Score > 0) map[fullName] = r4.Score;
     });
     return map;
   }
