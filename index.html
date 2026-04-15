@@ -471,12 +471,25 @@ function applyConfig(cfg) {
   try { const s = localStorage.getItem(STORAGE_KEY); if (s) applyConfig(JSON.parse(s)); } catch(e) {}
 })();
 
+const CONFIG_PASSWORD = 'monticello2026';  // ← change this to whatever you want
+
 function toggleConfig() {
   const bar = document.getElementById('config-bar');
   const btn = document.getElementById('config-toggle-btn');
-  bar.classList.toggle('open');
-  btn.classList.toggle('open');
-  btn.textContent = bar.classList.contains('open') ? '✕ Close' : '⚙ Configure';
+  if (bar.classList.contains('open')) {
+    bar.classList.remove('open');
+    btn.classList.remove('open');
+    btn.textContent = '⚙ Configure';
+  } else {
+    const pwd = prompt('Enter admin password:');
+    if (pwd !== CONFIG_PASSWORD) {
+      alert('Incorrect password.');
+      return;
+    }
+    bar.classList.add('open');
+    btn.classList.add('open');
+    btn.textContent = '✕ Close';
+  }
 }
 
 // ══════════════════════════════════════════
@@ -711,8 +724,8 @@ function getCurrentMajor() {
 
 const activeMajor = getCurrentMajor();
 applyConfig({
-  sheetId:    '1V8XajRqkT2YZHTDr8i1ChbMK3Q0QVJoMrcQ1l_c3gz8',
-  googleKey:  'AIzaSyDczpyX9rPpaKAosY2XWIQMiVeBTdPtHrA',
+  sheetId:    'YOUR_SHEET_ID_HERE',
+  googleKey:  'YOUR_GOOGLE_API_KEY_HERE',
   golfKey:    '0182e63d58msh029ee53ebb69875p164377jsn175bae2fce4d',
   sheetRange: activeMajor.sheetRange,
   major:      activeMajor.major,
