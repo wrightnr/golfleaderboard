@@ -405,7 +405,7 @@
           <th class="pos-cell">Pos</th>
           <th>Player · Assigned pro</th>
           <th class="r hide-mobile">Your score</th>
-          <th class="r hide-mobile">Pro R4</th>
+          <th class="r hide-mobile">Pro total</th>
           <th class="r">Combined</th>
           <th class="r" style="width:28px;"></th>
         </tr>
@@ -521,8 +521,7 @@ async function fetchProR4Scores(cfg) {
     const map = {};
     json.forEach(p => {
       const fullName = `${p.FirstName} ${p.LastName}`;
-      const r4 = p.PlayerRoundScore.find(r => r.Number === 4);
-      if (r4 && r4.Score > 0) map[fullName] = r4.Score;
+      if (p.TotalScore !== null) map[fullName] = p.TotalScore;
     });
     return map;
   }
