@@ -224,16 +224,16 @@
     font-size: 12px; font-weight: 500; font-family: 'DM Mono', monospace;
     min-width: 44px; text-align: center;
   }
-  .under { background: #eaf6ee; color: #256b38; }
-  .over  { background: #fdf0ef; color: var(--red); }
+  .under { background: #fdecea; color: #c0392b; }
+  .over  { background: #e8f0fb; color: #1a5cb5; }
   .even  { background: var(--cream-dark); color: var(--text-mid); }
 
   .combined-cell { text-align: right; }
   .combined-score {
     font-size: 18px; font-weight: 500; font-family: 'DM Mono', monospace;
   }
-  .combined-score.under { color: #256b38; }
-  .combined-score.over  { color: var(--red); }
+  .combined-score.under { color: #c0392b; }
+  .combined-score.over  { color: #1a5cb5; }
   .combined-score.even  { color: var(--text-mid); }
 
   .trend { font-size: 16px; color: var(--text-light); }
@@ -638,7 +638,7 @@ function processData(rows, majorName, round, par) {
 function updateStats(round) {
   if (!appData.length) return;
   const leader = appData[0];
-  const ctp = leader.combinedToPar;
+  const ctp = fmtToPar(leader.combinedToPar);
   document.getElementById('stat-leader').textContent  = leader.player;
   document.getElementById('stat-score').textContent   = ctp.label;
   document.getElementById('stat-entries').textContent = appData.length;
@@ -695,12 +695,12 @@ function renderTable() {
         <div class="player-pro">${r.pro}</div>
       </td>
       <td class="score-cell hide-mobile">
-        <span class="score-pill even">${r.yourScore}</span>
-        <span style="font-size:11px;color:var(--color-${ytp.cls === 'under' ? 'success' : ytp.cls === 'over' ? 'danger' : 'secondary'});margin-left:3px;">(${ytp.label})</span>
+        <span class="score-pill ${ytp.cls}">${r.yourScore}</span>
+        <span style="font-size:11px;color:${ytp.cls === 'under' ? '#c0392b' : ytp.cls === 'over' ? '#1a5cb5' : 'var(--text-mid)'};margin-left:3px;">(${ytp.label})</span>
       </td>
       <td class="score-cell hide-mobile">
         <span class="score-pill ${ptp.cls}">${r.proStrokes}</span>
-        <span style="font-size:11px;color:var(--color-${ptp.cls === 'under' ? 'success' : ptp.cls === 'over' ? 'danger' : 'secondary'});margin-left:3px;">(${ptp.label})</span>
+        <span style="font-size:11px;color:${ptp.cls === 'under' ? '#c0392b' : ptp.cls === 'over' ? '#1a5cb5' : 'var(--text-mid)'};margin-left:3px;">(${ptp.label})</span>
       </td>
       <td class="combined-cell">
         <span class="combined-score" style="color:var(--text-dark)">${r.combined}</span>
@@ -725,36 +725,7 @@ document.querySelector('[onclick="setFilter(\'under\',this)"]').textContent = 'T
 document.querySelector('[onclick="setFilter(\'over\',this)"]').textContent  = 'Bottom half';
 document.getElementById('round-selector').style.display = 'none';
 
-const MAJOR_SCHEDULE = [
-  { major: '014', year: '2026', sheetRange: 'Masters!A2:C100',          start: '2026-04-06', end: '2026-04-12' },
-  { major: '033', year: '2026', sheetRange: 'PGA Championship!A2:C100', start: '2026-05-11', end: '2026-05-17' },
-  { major: '026', year: '2026', sheetRange: 'US Open!A2:C100',          start: '2026-06-15', end: '2026-06-21' },
-  { major: '100', year: '2026', sheetRange: 'The Open!A2:C100',         start: '2026-07-13', end: '2026-07-19' },
-];
-
-function getCurrentMajor() {
-  const today = new Date();
-  let current = MAJOR_SCHEDULE[0];
-  for (const m of MAJOR_SCHEDULE) {
-    const start = new Date(m.start);
-    const end = new Date(m.end);
-    end.setHours(23, 59, 59);
-    if (today >= start) current = m;
-    if (today >= start && today <= end) break;
-  }
-  return current;
-}
-
-const activeMajor = getCurrentMajor();
-applyConfig({
-  sheetId:    '1V8XajRqkT2YZHTDr8i1ChbMK3Q0QVJoMrcQ1l_c3gz8',
-  googleKey:  'AIzaSyDczpyX9rPpaKAosY2XWIQMiVeBTdPtHrA',
-  golfKey:    '0182e63d58msh029ee53ebb69875p164377jsn175bae2fce4d',
-  sheetRange: activeMajor.sheetRange,
-  major:      activeMajor.major,
-  year:       activeMajor.year,
-});
-loadData();
+loadMock();
 </script>
 </body>
 </html>
