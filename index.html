@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Golf Competition Leaderboard</title>
+<title>Monticello Golf Club Major Event</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -344,21 +344,21 @@
         <input type="text" id="cfg-sheet-range" value="Sheet1!A2:C100" />
       </div>
       <div class="config-field">
-        <label>Golf API Provider</label>
-        <select id="cfg-api-provider">
-          <option value="mock">Mock data (no API key needed)</option>
-          <option value="sportsdata">SportsData.io</option>
-          <option value="rapidsports">RapidAPI – Golf API</option>
-          <option value="thesportsdb">TheSportsDB</option>
+        <label>Slash Golf API Key (RapidAPI)</label>
+        <input type="password" id="cfg-golf-key" placeholder="Your RapidAPI key..." />
+      </div>
+      <div class="config-field">
+        <label>Major Tournament</label>
+        <select id="cfg-major">
+          <option value="006">The Masters (Augusta National)</option>
+          <option value="026">PGA Championship (Quail Hollow)</option>
+          <option value="021">US Open (Oakmont)</option>
+          <option value="100">The Open Championship (Royal Portrush)</option>
         </select>
       </div>
       <div class="config-field">
-        <label>Golf API Key</label>
-        <input type="password" id="cfg-golf-key" placeholder="Your golf API key..." />
-      </div>
-      <div class="config-field">
-        <label>Tournament ID / Name</label>
-        <input type="text" id="cfg-tournament-id" placeholder="e.g. 401353360" />
+        <label>Year</label>
+        <input type="number" id="cfg-year" value="2026" min="2020" max="2030" />
       </div>
     </div>
     <div class="config-actions">
@@ -405,7 +405,7 @@
           <th class="pos-cell">Pos</th>
           <th>Player · Assigned pro</th>
           <th class="r hide-mobile">Your score</th>
-          <th class="r hide-mobile">Pro total</th>
+          <th class="r hide-mobile">Pro R4</th>
           <th class="r">Combined</th>
           <th class="r" style="width:28px;"></th>
         </tr>
@@ -422,16 +422,26 @@
   <p class="footer-text">
     Local scores are read from your Google Sheet via the
     <a href="https://developers.google.com/sheets/api" target="_blank">Google Sheets API v4</a>.
-    Pro scores are fetched from your chosen golf data API and matched by player name.
-    Combined score = local to-par + pro to-par. Lower is better.
+    Pro R4 scores are fetched live from <a href="https://slashgolf.dev" target="_blank">Slash Golf</a> via RapidAPI.
+    Combined score = your raw strokes + pro's R4 score to par. Lower is better.
   </p>
 </div>
 
 <script>
 // ══════════════════════════════════════════
-//  CONFIG
+//  MAJORS CONFIG
 // ══════════════════════════════════════════
-const STORAGE_KEY = 'golf_lb_config_v2';
+const MAJORS = {
+  '006': 'The Masters',
+  '026': 'PGA Championship',
+  '021': 'US Open',
+  '100': 'The Open Championship',
+};
+
+// ══════════════════════════════════════════
+//  CONFIG PERSISTENCE
+// ══════════════════════════════════════════
+const STORAGE_KEY = 'golf_lb_config_v3';
 
 function saveConfig() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(getConfig()));
@@ -440,22 +450,22 @@ function saveConfig() {
 
 function getConfig() {
   return {
-    sheetId:      document.getElementById('cfg-sheet-id').value.trim(),
-    googleKey:    document.getElementById('cfg-google-key').value.trim(),
-    sheetRange:   document.getElementById('cfg-sheet-range').value.trim() || 'Sheet1!A2:C100',
-    provider:     document.getElementById('cfg-api-provider').value,
-    golfKey:      document.getElementById('cfg-golf-key').value.trim(),
-    tournamentId: document.getElementById('cfg-tournament-id').value.trim(),
+    sheetId:    document.getElementById('cfg-sheet-id').value.trim(),
+    googleKey:  document.getElementById('cfg-google-key').value.trim(),
+    sheetRange: document.getElementById('cfg-sheet-range').value.trim() || 'Sheet1!A2:C100',
+    golfKey:    document.getElementById('cfg-golf-key').value.trim(),
+    major:      document.getElementById('cfg-major').value,
+    year:       document.getElementById('cfg-year').value.trim() || '2026',
   };
 }
 
 function applyConfig(cfg) {
-  document.getElementById('cfg-sheet-id').value      = cfg.sheetId || '';
-  document.getElementById('cfg-google-key').value    = cfg.googleKey || '';
-  document.getElementById('cfg-sheet-range').value   = cfg.sheetRange || 'Sheet1!A2:C100';
-  document.getElementById('cfg-api-provider').value  = cfg.provider || 'mock';
-  document.getElementById('cfg-golf-key').value      = cfg.golfKey || '';
-  document.getElementById('cfg-tournament-id').value = cfg.tournamentId || '';
+  document.getElementById('cfg-sheet-id').value    = cfg.sheetId || '';
+  document.getElementById('cfg-google-key').value  = cfg.googleKey || '';
+  document.getElementById('cfg-sheet-range').value = cfg.sheetRange || 'Sheet1!A2:C100';
+  document.getElementById('cfg-golf-key').value    = cfg.golfKey || '';
+  if (cfg.major) document.getElementById('cfg-major').value = cfg.major;
+  document.getElementById('cfg-year').value        = cfg.year || '2026';
 }
 
 (function loadSavedConfig() {
@@ -477,23 +487,8 @@ let appData   = [];
 let curFilter = 'all';
 
 // ══════════════════════════════════════════
-//  SCORE HELPERS
-// ══════════════════════════════════════════
-// Scores are stored as raw integers (strokes).
-// Combined = yourScore + proR4Score (lower is better).
-function fmtRaw(n) {
-  // Display raw stroke count
-  return { label: n.toString(), cls: 'even' };
-}
-
-function fmtCombined(n) {
-  // For combined we just show the number; highlight lowest
-  return n.toString();
-}
-
-// ══════════════════════════════════════════
 //  FETCH: GOOGLE SHEETS
-//  Expected columns: Player Name | Assigned Pro | Your Score
+//  Columns: Player Name | Assigned Pro | Your Score
 // ══════════════════════════════════════════
 async function fetchSheetData(sheetId, googleKey, range) {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(range)}?key=${googleKey}`;
@@ -501,81 +496,76 @@ async function fetchSheetData(sheetId, googleKey, range) {
   if (!res.ok) throw new Error(`Google Sheets error ${res.status}: ${await res.text()}`);
   const json = await res.json();
   return (json.values || []).map(row => ({
-    player:     row[0] || '',
-    pro:        row[1] || '',
-    yourScore:  parseInt(row[2]) || 0,
+    player:    row[0] || '',
+    pro:       row[1] || '',
+    yourScore: parseInt(row[2]) || 0,
   })).filter(r => r.player);
 }
 
 // ══════════════════════════════════════════
-//  FETCH: GOLF API — returns map of { "Player Name": r4Score }
+//  FETCH: SLASH GOLF (RapidAPI)
+//  Returns map of { "First Last": r4ScoreToPar }
 // ══════════════════════════════════════════
-async function fetchProR4Scores(cfg) {
-  if (cfg.provider === 'mock' || !cfg.golfKey) return null;
+async function fetchSlashGolfR4(golfKey, tournId, year) {
+  // Step 1: get leaderboard (all rounds, returns most current by default)
+  const url = `https://live-golf-data.p.rapidapi.com/leaderboard?tournId=${tournId}&year=${year}`;
+  const res = await fetch(url, {
+    headers: {
+      'x-rapidapi-key':  golfKey,
+      'x-rapidapi-host': 'live-golf-data.p.rapidapi.com'
+    }
+  });
+  if (!res.ok) throw new Error(`Slash Golf error ${res.status}: ${await res.text()}`);
+  const json = await res.json();
 
- if (cfg.provider === 'sportsdata') {
-    const url = `https://api.sportsdata.io/golf/v2/json/PlayerTournamentRoundScores/${cfg.tournamentId}?key=${cfg.golfKey}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`SportsData error ${res.status}`);
-    const json = await res.json();
-    const map = {};
-    json.forEach(p => {
-      const fullName = `${p.FirstName} ${p.LastName}`;
-      if (p.TotalScore !== null) map[fullName] = p.TotalScore;
-    });
-    return map;
-  }
-
-  if (cfg.provider === 'rapidsports') {
-    // RapidAPI Golf Leaderboard Data
-    const url = `https://golf-leaderboard-data.p.rapidapi.com/leaderboard/${cfg.tournamentId}`;
-    const res = await fetch(url, {
-      headers: {
-        'x-rapidapi-key': cfg.golfKey,
-        'x-rapidapi-host': 'golf-leaderboard-data.p.rapidapi.com'
-      }
-    });
-    if (!res.ok) throw new Error(`RapidAPI error ${res.status}`);
-    const json = await res.json();
-    const map = {};
-    ((json.results || {}).leaderboard || []).forEach(p => {
-      const rounds = p.rounds || [];
-      const r4 = rounds[3] ? parseInt(rounds[3].round_score) : null;
-      if (r4 !== null) map[p.player_name] = r4;
-    });
-    return map;
-  }
-
-  if (cfg.provider === 'thesportsdb') {
-    const url = `https://www.thesportsdb.com/api/v1/json/${cfg.golfKey}/searchevents.php?e=${encodeURIComponent(cfg.tournamentId)}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`TheSportsDB error ${res.status}`);
-    const json = await res.json();
-    const map = {};
-    (json.event || []).forEach(p => { map[p.strHomeTeam] = parseInt(p.intHomeScore) || 0; });
-    return map;
-  }
-
-  return null;
+  // Response shape: { leaderboard: [{ playerName, rounds: [{ roundId, score (to par) }] }] }
+  const map = {};
+  const players = json.leaderboard || json.players || json.results || [];
+  players.forEach(p => {
+    const name = p.playerName || p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim();
+    // rounds array — find round 4
+    const rounds = p.rounds || [];
+    const r4 = rounds.find(r => r.roundId === 4 || r.round === 4 || r.roundNumber === 4);
+    if (r4) {
+      // score field is strokes-to-par (e.g. -3, +2, 0)
+      const scoreToPar = r4.score !== undefined ? r4.score :
+                         r4.scoreToPar !== undefined ? r4.scoreToPar :
+                         r4.strokes !== undefined ? r4.strokes - 72 : null;
+      if (scoreToPar !== null) map[name] = scoreToPar;
+    }
+  });
+  return map;
 }
 
 // ══════════════════════════════════════════
-//  MOCK DATA  (your score + pro R4 score)
+//  NAME MATCHING
+// ══════════════════════════════════════════
+function matchPro(proName, proMap) {
+  // Exact match first
+  if (proMap[proName] !== undefined) return proMap[proName];
+  const proLower = proName.toLowerCase();
+  // Last name match
+  const lastName = proLower.split(' ').pop();
+  const key = Object.keys(proMap).find(k => k.toLowerCase().split(' ').pop() === lastName);
+  return key !== undefined ? proMap[key] : null;
+}
+
+// ══════════════════════════════════════════
+//  MOCK DATA
 // ══════════════════════════════════════════
 const MOCK = [
-  { player: 'Sarah K.',   pro: 'Rory McIlroy',        yourScore: 76, proR4: 66 },
-  { player: 'Mike T.',    pro: 'Scottie Scheffler',    yourScore: 81, proR4: 65 },
-  { player: 'Dana L.',    pro: 'Jon Rahm',              yourScore: 79, proR4: 70 },
-  { player: 'Chris B.',   pro: 'Xander Schauffele',    yourScore: 84, proR4: 67 },
-  { player: 'Pat W.',     pro: 'Collin Morikawa',      yourScore: 80, proR4: 71 },
-  { player: 'Jordan M.',  pro: 'Brooks Koepka',        yourScore: 88, proR4: 69 },
-  { player: 'Taylor R.',  pro: 'Ludvig Åberg',          yourScore: 77, proR4: 70 },
-  { player: 'Casey N.',   pro: 'Tommy Fleetwood',      yourScore: 83, proR4: 68 },
+  { player: 'Sarah K.',  pro: 'Rory McIlroy',       yourScore: 76, proR4: -6 },
+  { player: 'Mike T.',   pro: 'Scottie Scheffler',   yourScore: 81, proR4: -5 },
+  { player: 'Dana L.',   pro: 'Jon Rahm',             yourScore: 79, proR4: -2 },
+  { player: 'Chris B.',  pro: 'Xander Schauffele',   yourScore: 84, proR4: -4 },
+  { player: 'Pat W.',    pro: 'Collin Morikawa',     yourScore: 80, proR4: -3 },
+  { player: 'Jordan M.', pro: 'Brooks Koepka',       yourScore: 88, proR4:  0 },
+  { player: 'Taylor R.', pro: 'Tyrrell Hatton',      yourScore: 77, proR4: -7 },
+  { player: 'Casey N.',  pro: 'Tommy Fleetwood',     yourScore: 83, proR4: -1 },
 ];
 
 function loadMock() {
-  document.getElementById('cfg-api-provider').value = 'mock';
-  processData(MOCK.map(d => ({ ...d })));
+  processData(MOCK.map(d => ({ ...d })), 'Mock Major', 'R4');
   document.getElementById('setup-notice').style.display = 'none';
   setStatus('Showing mock data · ' + new Date().toLocaleTimeString());
 }
@@ -585,11 +575,11 @@ function loadMock() {
 // ══════════════════════════════════════════
 async function loadData() {
   const cfg = getConfig();
-  if (cfg.provider === 'mock' || (!cfg.sheetId && !cfg.golfKey)) { loadMock(); return; }
+  if (!cfg.sheetId && !cfg.golfKey) { loadMock(); return; }
 
   setStatus('Loading…', true);
   try {
-    // 1. Your scores from Google Sheet
+    // 1. Local scores from Google Sheet
     let sheetRows;
     if (cfg.sheetId && cfg.googleKey) {
       sheetRows = await fetchSheetData(cfg.sheetId, cfg.googleKey, cfg.sheetRange);
@@ -597,29 +587,28 @@ async function loadData() {
       sheetRows = MOCK.map(d => ({ player: d.player, pro: d.pro, yourScore: d.yourScore }));
     }
 
-    // 2. Pro R4 scores from golf API
-    const proMap = await fetchProR4Scores(cfg);
+    // 2. Pro R4 scores from Slash Golf
+    let proMap = null;
+    let currentRound = 'R4';
+    if (cfg.golfKey && cfg.major) {
+      proMap = await fetchSlashGolfR4(cfg.golfKey, cfg.major, cfg.year);
+    }
 
     // 3. Match & combine
     const rows = sheetRows.map(r => {
-      let proR4 = 0;
-      if (proMap) {
-        const key = Object.keys(proMap).find(k =>
-          k.toLowerCase().includes(r.pro.toLowerCase().split(' ').pop()) ||
-          r.pro.toLowerCase().includes(k.toLowerCase().split(' ').pop())
-        );
-        if (key) proR4 = proMap[key];
-      } else {
+      let proR4 = null;
+      if (proMap) proR4 = matchPro(r.pro, proMap);
+      if (proR4 === null) {
         const m = MOCK.find(m => m.pro.toLowerCase() === r.pro.toLowerCase());
-        if (m) proR4 = m.proR4;
+        proR4 = m ? m.proR4 : 0;
       }
       return { ...r, proR4 };
     });
 
-    processData(rows);
+    const majorName = MAJORS[cfg.major] || cfg.major;
+    processData(rows, majorName, currentRound);
     document.getElementById('setup-notice').style.display = 'none';
-    document.getElementById('event-subtitle').textContent =
-      (cfg.tournamentId || 'Tournament') + ' · Final round';
+    document.getElementById('event-subtitle').textContent = `${majorName} ${cfg.year} · R4`;
     setStatus('Updated · ' + new Date().toLocaleTimeString());
   } catch(e) {
     setStatus('Error: ' + e.message);
@@ -630,23 +619,24 @@ async function loadData() {
 // ══════════════════════════════════════════
 //  PROCESS + RENDER
 // ══════════════════════════════════════════
-function processData(rows) {
+function processData(rows, majorName, round) {
+  // combined = yourScore (raw strokes) + proR4 (to par) → lower is better
   appData = rows.map(r => ({
     ...r,
     combined: r.yourScore + r.proR4,
   })).sort((a, b) => a.combined - b.combined);
 
-  updateStats();
+  updateStats(round);
   renderTable();
 }
 
-function updateStats() {
+function updateStats(round) {
   if (!appData.length) return;
   const leader = appData[0];
   document.getElementById('stat-leader').textContent  = leader.player;
   document.getElementById('stat-score').textContent   = leader.combined;
   document.getElementById('stat-entries').textContent = appData.length;
-  document.getElementById('stat-round').textContent   = 'R4';
+  document.getElementById('stat-round').textContent   = round || 'R4';
 }
 
 function setFilter(f, btn) {
@@ -660,8 +650,8 @@ function renderTable() {
   const best = appData.length ? appData[0].combined : 0;
 
   const filtered = appData.filter(r => {
-    if (curFilter === 'under') return r.combined < (best + 5);  // bottom half
-    if (curFilter === 'over')  return r.combined >= (best + 5);
+    if (curFilter === 'under') return r.combined <= best + Math.floor(appData.length / 2);
+    if (curFilter === 'over')  return r.combined >  best + Math.floor(appData.length / 2);
     return true;
   });
 
@@ -673,12 +663,16 @@ function renderTable() {
     return;
   }
 
-  filtered.forEach((r, pos) => {
+  filtered.forEach(r => {
     const rank = appData.indexOf(r) + 1;
     const posClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
     const rowClass = rank === 1 ? 'rank-1' : '';
     const diffFromLead = r.combined - best;
     const diffLabel = diffFromLead === 0 ? '—' : '+' + diffFromLead;
+
+    // Format pro R4 score to par
+    const proLabel = r.proR4 === 0 ? 'E' : r.proR4 > 0 ? '+' + r.proR4 : r.proR4.toString();
+    const proCls   = r.proR4 < 0 ? 'under' : r.proR4 > 0 ? 'over' : 'even';
 
     const mainRow = document.createElement('tr');
     mainRow.className = `data-row ${rowClass}`;
@@ -692,7 +686,7 @@ function renderTable() {
         <span class="score-pill even">${r.yourScore}</span>
       </td>
       <td class="score-cell hide-mobile">
-        <span class="score-pill even">${r.proR4}</span>
+        <span class="score-pill ${proCls}">${proLabel}</span>
       </td>
       <td class="combined-cell">
         <span class="combined-score" style="color:var(--text-dark)">${r.combined}</span>
@@ -712,11 +706,9 @@ function setStatus(msg, loading) {
   }
 }
 
-// Simplify filters to make sense with raw scores
+// Relabel filters
 document.querySelector('[onclick="setFilter(\'under\',this)"]').textContent = 'Top half';
 document.querySelector('[onclick="setFilter(\'over\',this)"]').textContent  = 'Bottom half';
-
-// Hide round selector — not needed
 document.getElementById('round-selector').style.display = 'none';
 
 loadMock();
