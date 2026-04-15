@@ -364,7 +364,6 @@
     <div class="config-actions">
       <button class="btn btn-primary" onclick="loadData()">Load Data</button>
       <button class="btn btn-ghost btn-sm" onclick="saveConfig()">Save config</button>
-      <button class="btn btn-ghost btn-sm" onclick="loadMock()">Load mock data</button>
     </div>
   </div>
 </div>
@@ -550,63 +549,27 @@ function matchPro(proName, proMap) {
 }
 
 // ══════════════════════════════════════════
-//  MOCK DATA
-// ══════════════════════════════════════════
-const MOCK = [
-  { player: 'Sarah K.',  pro: 'Rory McIlroy',      yourScore: 76, proR4: -6 },
-  { player: 'Mike T.',   pro: 'Scottie Scheffler',  yourScore: 81, proR4: -5 },
-  { player: 'Dana L.',   pro: 'Jon Rahm',            yourScore: 79, proR4: -2 },
-  { player: 'Chris B.',  pro: 'Xander Schauffele',  yourScore: 84, proR4: -4 },
-  { player: 'Pat W.',    pro: 'Collin Morikawa',    yourScore: 80, proR4: -3 },
-  { player: 'Jordan M.', pro: 'Brooks Koepka',      yourScore: 88, proR4:  0 },
-  { player: 'Taylor R.', pro: 'Tyrrell Hatton',     yourScore: 74, proR4: -7 },
-  { player: 'Casey N.',  pro: 'Tommy Fleetwood',    yourScore: 83, proR4: -1 },
-];
-
-function loadMock() {
-  processData(MOCK.map(d => ({ ...d })), 'The Masters', 'R4', 72);
-  document.getElementById('setup-notice').style.display = 'none';
-  document.getElementById('event-subtitle').textContent = 'The Masters 2026 · R4 · Par 72';
-  setStatus('Showing mock data · ' + new Date().toLocaleTimeString());
-}
-
-// ══════════════════════════════════════════
 //  MAIN LOAD
 // ══════════════════════════════════════════
 async function loadData() {
   const cfg = getConfig();
-  if (!cfg.sheetId && !cfg.golfKey) { loadMock(); return; }
-
   setStatus('Loading…', true);
   try {
     // 1. Local scores from Google Sheet
-    let sheetRows;
-    if (cfg.sheetId && cfg.googleKey) {
-      sheetRows = await fetchSheetData(cfg.sheetId, cfg.googleKey, cfg.sheetRange);
-    } else {
-      sheetRows = MOCK.map(d => ({ player: d.player, pro: d.pro, yourScore: d.yourScore }));
-    }
+    const sheetRows = await fetchSheetData(cfg.sheetId, cfg.googleKey, cfg.sheetRange);
 
     // 2. Pro R4 scores from Slash Golf
-    let proMap = null;
-    let currentRound = 'R4';
-    if (cfg.golfKey && cfg.major) {
-      proMap = await fetchSlashGolfR4(cfg.golfKey, cfg.major, cfg.year);
-    }
+    const proMap = await fetchSlashGolfR4(cfg.golfKey, cfg.major, cfg.year);
 
     // 3. Match & combine
     const rows = sheetRows.map(r => {
-      let proR4 = null;
-      if (proMap) proR4 = matchPro(r.pro, proMap);
-      if (proR4 === null) {
-        const m = MOCK.find(m => m.pro.toLowerCase() === r.pro.toLowerCase());
-        proR4 = m ? m.proR4 : 0;
-      }
+      let proR4 = matchPro(r.pro, proMap);
+      if (proR4 === null) proR4 = 0;
       return { ...r, proR4 };
     });
 
     const majorInfo = MAJORS[cfg.major] || { name: cfg.major, par: 72 };
-    processData(rows, majorInfo.name, currentRound, majorInfo.par);
+    processData(rows, majorInfo.name, 'R4', majorInfo.par);
     document.getElementById('setup-notice').style.display = 'none';
     document.getElementById('event-subtitle').textContent = `${majorInfo.name} ${cfg.year} · R4 · Par ${majorInfo.par}`;
     setStatus('Updated · ' + new Date().toLocaleTimeString());
@@ -725,7 +688,37 @@ document.querySelector('[onclick="setFilter(\'under\',this)"]').textContent = 'T
 document.querySelector('[onclick="setFilter(\'over\',this)"]').textContent  = 'Bottom half';
 document.getElementById('round-selector').style.display = 'none';
 
-loadMock();
+// Auto-load real data on every page load
+const MAJOR_SCHEDULE = [
+  { major: '014', year: '2026', sheetRange: 'Masters!A2:C100',          start: '2026-04-06', end: '2026-04-12' },
+  { major: '033', year: '2026', sheetRange: 'PGA Championship!A2:C100', start: '2026-05-11', end: '2026-05-17' },
+  { major: '026', year: '2026', sheetRange: 'US Open!A2:C100',          start: '2026-06-15', end: '2026-06-21' },
+  { major: '100', year: '2026', sheetRange: 'The Open!A2:C100',         start: '2026-07-13', end: '2026-07-19' },
+];
+
+function getCurrentMajor() {
+  const today = new Date();
+  let current = MAJOR_SCHEDULE[0];
+  for (const m of MAJOR_SCHEDULE) {
+    const start = new Date(m.start);
+    const end = new Date(m.end);
+    end.setHours(23, 59, 59);
+    if (today >= start) current = m;
+    if (today >= start && today <= end) break;
+  }
+  return current;
+}
+
+const activeMajor = getCurrentMajor();
+applyConfig({
+  sheetId:    '1V8XajRqkT2YZHTDr8i1ChbMK3Q0QVJoMrcQ1l_c3gz8',
+  googleKey:  'AIzaSyDczpyX9rPpaKAosY2XWIQMiVeBTdPtHrA',
+  golfKey:    '0182e63d58msh029ee53ebb69875p164377jsn175bae2fce4d',
+  sheetRange: activeMajor.sheetRange,
+  major:      activeMajor.major,
+  year:       activeMajor.year,
+});
+loadData();
 </script>
 </body>
 </html>
